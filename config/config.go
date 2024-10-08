@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	ServerPort     string
 	DBHost         string
 	DBPort         string
 	DBUser         string
@@ -26,6 +27,7 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
+		ServerPort:     os.Getenv("SERVER_PORT"),
 		DBHost:         os.Getenv("DB_HOST"),
 		DBPort:         os.Getenv("DB_PORT"),
 		DBUser:         os.Getenv("DB_USER"),

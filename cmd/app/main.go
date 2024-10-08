@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"music_catalog/config"
@@ -49,6 +50,9 @@ func main() {
 	// Выбираем REST API реализацию
 	songAPI := api.NewRestSongAPI(songHandler)
 
-	// Регистрация маршрутов через интерфейс
-	http.ListenAndServe(":8080", songAPI.RegisterRoutes())
+	// Запускаем сервер
+	logger.Info(fmt.Sprintf("Starting server on port %s...\n", config.ServerPort))
+	logger.Info(fmt.Sprintf("Swagger UI available at http://localhost:%s/swagger/index.html\n", config.ServerPort))
+	http.ListenAndServe(fmt.Sprintf(":%s", config.ServerPort), songAPI.RegisterRoutes())
+
 }
