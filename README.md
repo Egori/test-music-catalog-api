@@ -1,2 +1,9 @@
 # test-music-catalog-api
-this is a test assignment for the position of a junior Go developer
+This is a test assignment for the position of a junior Go developer
+
+```bash
+go run ./cmd/app/main.go
+```
+```powershell
+go run .\cmd\app\main.go
+```
