@@ -1,0 +1,213 @@
+definitions:
+  api.AddSongRequest:
+    properties:
+      group:
+        description: Artist group
+        example: Muse
+        type: string
+      song:
+        description: Song title
+        example: Supermassive Black Hole
+        type: string
+    type: object
+  api.UpdateSongRequest:
+    properties:
+      group:
+        example: Muse
+        type: string
+      link:
+        example: https://www.youtube.com/watch?v=Xsp3_a-PMTw
+        type: string
+      release_date:
+        example: 16.07.2006
+        type: string
+      text:
+        example: Ooh baby, don't you know I suffer...
+        type: string
+      title:
+        example: Supermassive Black Hole
+        type: string
+    type: object
+  models.Song:
+    properties:
+      group:
+        type: string
+      id:
+        type: integer
+      link:
+        type: string
+      release_date:
+        type: string
+      text:
+        type: string
+      title:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /songs:
+    get:
+      description: Fetches a list of songs with filtering by all fields and pagination
+      parameters:
+      - description: Group name
+        in: query
+        name: group
+        type: string
+      - description: Song title
+        in: query
+        name: title
+        type: string
+      - description: Release date
+        in: query
+        name: release_date
+        type: string
+      - description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of songs
+          schema:
+            items:
+              $ref: '#/definitions/models.Song'
+            type: array
+        "500":
+          description: Error retrieving the data
+          schema:
+            type: string
+      summary: Get list of songs
+      tags:
+      - Songs
+    post:
+      consumes:
+      - application/json
+      description: Adds a new song to the catalog and fetches additional details from
+        an external API
+      parameters:
+      - description: Song request
+        in: body
+        name: song
+        required: true
+        schema:
+          $ref: '#/definitions/api.AddSongRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Song added successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid input
+          schema:
+            type: string
+        "500":
+          description: Error adding the song
+          schema:
+            type: string
+      summary: Add a new song
+      tags:
+      - Songs
+  /songs/{id}:
+    delete:
+      description: Deletes a song by its ID
+      parameters:
+      - description: Song ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Song deleted successfully
+          schema:
+            type: string
+        "404":
+          description: Song not found
+          schema:
+            type: string
+        "500":
+          description: Error deleting the song
+          schema:
+            type: string
+      summary: Delete a song
+      tags:
+      - Songs
+    put:
+      consumes:
+      - application/json
+      description: Update an existing song with the provided data.
+      parameters:
+      - description: Song ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Song data
+        in: body
+        name: song
+        required: true
+        schema:
+          $ref: '#/definitions/api.UpdateSongRequest'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Song updated successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "404":
+          description: Song not found
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Update a song by its ID
+      tags:
+      - songs
+  /songs/{id}/text:
+    get:
+      description: Fetches the song lyrics with pagination over verses
+      parameters:
+      - description: Song ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Page number (default: 0 - full text)'
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Paginated verses
+          schema:
+            type: string
+        "404":
+          description: Song not found
+          schema:
+            type: string
+        "500":
+          description: Error retrieving lyrics
+          schema:
+            type: string
+      summary: Get song lyrics with pagination
+      tags:
+      - Songs
+swagger: "2.0"
