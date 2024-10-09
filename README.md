@@ -2,7 +2,7 @@ This is a test assignment for the position of a junior Go developer
 
 Конфигурация приложения доступна в [файле .env](.env)
 
-### Run application
+### Run application:
 
 Linux, macOS:
 ```bash
@@ -14,7 +14,7 @@ Windows:
 go run .\cmd\app\main.go
 ```
 
-###Swagger UI:  
+### Swagger UI:  
 
 После запуска приложения Swagger UI будет доступен по адресу:  
 (Номер порта настраивается в .env)  
