@@ -73,7 +73,6 @@ func (s *musicService) AddSong(ctx context.Context, group string, title string) 
 		return fmt.Errorf("error saving song: %w", err)
 	}
 
-	log.Println("[INFO] Song added successfully")
 	return nil
 }
 
@@ -91,7 +90,6 @@ func (s *musicService) GetSongText(ctx context.Context, songID int, page int) (s
 
 // UpdateSong updates the details of an existing song
 func (s *musicService) UpdateSong(ctx context.Context, song models.Song) error {
-	log.Printf("[INFO] Updating song: %+v", song)
 	releaseDate, err := ParseDate(song.ReleaseDate)
 	if err != nil {
 		log.Printf("[ERROR] Error parsing release date: %v", err)
@@ -103,7 +101,6 @@ func (s *musicService) UpdateSong(ctx context.Context, song models.Song) error {
 
 // DeleteSong deletes a song from the library
 func (s *musicService) DeleteSong(ctx context.Context, songID int) error {
-	log.Printf("[INFO] Deleting song with ID: %d", songID)
 	return s.repo.DeleteSong(ctx, songID)
 }
 

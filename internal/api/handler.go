@@ -3,12 +3,13 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
 
 	"net/http"
 	"strconv"
 
 	catalog_errors "music_catalog/internal/errors"
+	"music_catalog/internal/logger"
 	"music_catalog/internal/models"
 
 	"github.com/go-chi/chi/v5"
@@ -26,13 +27,14 @@ type MusicService interface {
 // SongHandler handles HTTP requests for songs
 type SongHandler struct {
 	musicService MusicService
-	logger       *log.Logger
+	logger       logger.Logger
 }
 
 // NewSongHandler creates a new SongHandler with the provided music service
-func NewSongHandler(musicService MusicService) *SongHandler {
+func NewSongHandler(musicService MusicService, logger logger.Logger) *SongHandler {
 	return &SongHandler{
 		musicService: musicService,
+		logger:       logger,
 	}
 }
 
@@ -48,32 +50,31 @@ func NewSongHandler(musicService MusicService) *SongHandler {
 // @Failure 500 {string} string "Error adding the song"
 // @Router /songs [post]
 func (h *SongHandler) AddSong(w http.ResponseWriter, r *http.Request) {
-	log.Println("[DEBUG] Request to add a new song")
 
 	var requestBody AddSongRequest
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 	if err != nil {
-		log.Printf("[ERROR] Error decoding JSON: %v", err)
+		h.logger.Error("Error decoding JSON:", err)
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
 
+	h.logger.Debug("Request to add song: ", requestBody.Group, requestBody.Title)
+
 	if requestBody.Group == "" || requestBody.Title == "" {
-		log.Printf("[ERROR] Group or song title is missing")
+		h.logger.Error("Group or song title is missing")
 		http.Error(w, "Group or song title is missing", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("[INFO] Adding song: %s - %s", requestBody.Group, requestBody.Title)
-
 	err = h.musicService.AddSong(r.Context(), requestBody.Group, requestBody.Title)
 	if err != nil {
-		log.Printf("[ERROR] Error adding song: %v", err)
+		h.logger.Error("Error adding song:", err)
 		http.Error(w, "Error adding the song", http.StatusInternalServerError)
 		return
 	}
 
-	log.Println("[INFO] Song added successfully")
+	h.logger.Info("Song added successfully: ", requestBody.Group, requestBody.Title)
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -91,7 +92,6 @@ func (h *SongHandler) AddSong(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {string} string "Error retrieving the data"
 // @Router /songs [get]
 func (h *SongHandler) GetSongs(w http.ResponseWriter, r *http.Request) {
-	log.Println("[DEBUG] Request to get list of songs")
 	// Получаем параметры фильтров из запроса
 	group := r.URL.Query().Get("group")
 	title := r.URL.Query().Get("title")
@@ -103,6 +103,8 @@ func (h *SongHandler) GetSongs(w http.ResponseWriter, r *http.Request) {
 		Title:       title,
 		ReleaseDate: releaseDate,
 	}
+
+	h.logger.Debug("Request to get songs: ", filters.Group, filters.Title, filters.ReleaseDate)
 
 	// Получаем параметры пагинации
 	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -123,7 +125,7 @@ func (h *SongHandler) GetSongs(w http.ResponseWriter, r *http.Request) {
 	// Вызов сервиса для получения песен
 	songs, err := h.musicService.GetSongs(r.Context(), filters, pagination)
 	if err != nil {
-		log.Printf("[ERROR] Failed to get songs: %v", err)
+		h.logger.Error("Error getting songs:", err)
 		http.Error(w, "Failed to fetch songs", http.StatusInternalServerError)
 		return
 	}
@@ -145,7 +147,8 @@ func (h *SongHandler) GetSongs(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {string} string "Error retrieving lyrics"
 // @Router /songs/{id}/text [get]
 func (h *SongHandler) GetSongText(w http.ResponseWriter, r *http.Request) {
-	log.Println("[DEBUG] Request to get song lyrics")
+
+	// Получаем ID песни
 	songID, err := strconv.Atoi(chi.URLParam(r, "id"))
 
 	if err != nil {
@@ -157,14 +160,17 @@ func (h *SongHandler) GetSongText(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 
 	page, err := strconv.Atoi(pageStr)
+
 	if err != nil {
 		page = 0 // По умолчанию - полный текст
 	}
 
+	h.logger.Debug("Request to get songs", songID, page)
+
 	// Получам полный текст песни
 	text, err := h.musicService.GetSongText(r.Context(), songID, page) // 0 обозначает полный текст песни
 	if err != nil {
-		log.Printf("[ERROR] Error retrieving song lyrics: %v", err)
+		h.logger.Error("Error getting song text:", err)
 		if err == catalog_errors.ErrSongNotFound {
 			http.Error(w, "Song not found", http.StatusNotFound)
 		} else {
@@ -191,7 +197,6 @@ func (h *SongHandler) GetSongText(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {string} string "Error deleting the song"
 // @Router /songs/{id} [delete]
 func (h *SongHandler) DeleteSong(w http.ResponseWriter, r *http.Request) {
-	log.Println("[DEBUG] Request to delete song")
 	songID, err := strconv.Atoi(chi.URLParam(r, "id"))
 
 	if err != nil {
@@ -199,9 +204,11 @@ func (h *SongHandler) DeleteSong(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logger.Debug("Request to delete song", songID)
+
 	err = h.musicService.DeleteSong(r.Context(), songID)
 	if err != nil {
-		log.Printf("[ERROR] Error deleting song: %v", err)
+		h.logger.Error("Error deleting song:", err)
 		if err == catalog_errors.ErrSongNotFound {
 			http.Error(w, "Song not found", http.StatusNotFound)
 		} else {
@@ -210,7 +217,7 @@ func (h *SongHandler) DeleteSong(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("[INFO] Song deleted successfully")
+	h.logger.Info("Song deleted successfully")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -231,6 +238,7 @@ func (h *SongHandler) UpdateSong(w http.ResponseWriter, r *http.Request) {
 	songID, err := strconv.Atoi(chi.URLParam(r, "id"))
 
 	if err != nil {
+		h.logger.Error("Invalid song ID:", err)
 		http.Error(w, "Invalid song ID", http.StatusBadRequest)
 		return
 	}
@@ -238,14 +246,14 @@ func (h *SongHandler) UpdateSong(w http.ResponseWriter, r *http.Request) {
 	// Чтение и декодирование данных из тела запроса
 	var updatedSong models.Song
 	if err := json.NewDecoder(r.Body).Decode(&updatedSong); err != nil {
-		log.Printf("[ERROR] Error decoding request body: %v", err)
+		h.logger.Error("Invalid request payload:", err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	if updatedSong.Group == "" || updatedSong.Title == "" || updatedSong.Text == "" ||
 		updatedSong.Link == "" || updatedSong.ReleaseDate == "" {
-		log.Printf("[ERROR] some of required fields is missing")
+		h.logger.Error(fmt.Sprintf("some of required fields is missing: %+v", updatedSong))
 		http.Error(w, "some of required fields is missing", http.StatusBadRequest)
 		return
 	}
@@ -253,10 +261,12 @@ func (h *SongHandler) UpdateSong(w http.ResponseWriter, r *http.Request) {
 	// Добавляем songID в объект песни, чтобы обновить правильную запись
 	updatedSong.ID = songID
 
+	h.logger.Debug("Request to update song", updatedSong.ID)
+
 	// Вызов сервиса для обновления песни
 	err = h.musicService.UpdateSong(r.Context(), updatedSong)
 	if err != nil {
-		log.Printf("[ERROR] Error updating song: %v", err)
+		h.logger.Error("Failed to update song:", err)
 		if err == catalog_errors.ErrSongNotFound {
 			http.Error(w, "Song not found", http.StatusNotFound)
 		} else {
@@ -265,6 +275,7 @@ func (h *SongHandler) UpdateSong(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.logger.Info("Song updated successfully")
 	// Ответ на успешное обновление
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Song updated successfully"))

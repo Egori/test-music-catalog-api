@@ -26,6 +26,7 @@ func main() {
 	if err != nil {
 		logger.Fatal("ошибка при загрузке конфигурации: %v", err)
 	}
+	logger.Debug(fmt.Sprintf("Loaded config: %+v", config))
 
 	// Подключение к базе данных
 	dbConnection, err := db.NewDB(config)
@@ -45,14 +46,14 @@ func main() {
 	musicService := service.NewMusicService(repository, external_api.NewExternalAPIClient(config))
 
 	// Инициализация хендлеров
-	songHandler := api.NewSongHandler(musicService)
+	songHandler := api.NewSongHandler(musicService, logger)
 
 	// Выбираем REST API реализацию
 	songAPI := api.NewRestSongAPI(songHandler)
 
 	// Запускаем сервер
-	logger.Info(fmt.Sprintf("Starting server on port %s...\n", config.ServerPort))
-	logger.Info(fmt.Sprintf("Swagger UI available at http://localhost:%s/swagger/index.html\n", config.ServerPort))
+	logger.Info(fmt.Sprintf("Starting server on port %s...", config.ServerPort))
+	logger.Info(fmt.Sprintf("Swagger UI available at http://localhost:%s/swagger/index.html", config.ServerPort))
 	http.ListenAndServe(fmt.Sprintf(":%s", config.ServerPort), songAPI.RegisterRoutes())
 
 }
