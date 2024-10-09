@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	catalog_errors "music_catalog/internal/errors"
+	"music_catalog/internal/logger"
 	"music_catalog/internal/models"
 	"music_catalog/internal/repository/external_api"
 	"music_catalog/internal/repository/pg_repo"
@@ -15,19 +17,20 @@ import (
 type musicService struct {
 	repo      pg_repo.SongRepository
 	apiClient external_api.APIClient
+	logger    logger.Logger
 }
 
 // NewMusicService creates a new instance of the MusicService
-func NewMusicService(repo pg_repo.SongRepository, apiClient external_api.APIClient) *musicService {
+func NewMusicService(repo pg_repo.SongRepository, apiClient external_api.APIClient, logger logger.Logger) *musicService {
 	return &musicService{
 		repo:      repo,
 		apiClient: apiClient,
+		logger:    logger,
 	}
 }
 
 // AddSong adds a new song to the library and fetches additional song details
 func (s *musicService) AddSong(ctx context.Context, group string, title string) error {
-	log.Printf("[INFO] Adding song: %s - %s", group, title)
 
 	// Fetch song details from external API
 	songDetail, err := s.apiClient.FetchSongDetails(group, title)
@@ -36,7 +39,8 @@ func (s *musicService) AddSong(ctx context.Context, group string, title string) 
 		return fmt.Errorf("error fetching song details: %w", err)
 	}
 
-	log.Printf("[INFO] Fetched song details: %+v", songDetail)
+	s.logger.Info("Song found in external API")
+	s.logger.Debug(fmt.Sprintf("Song details from external API: %+v", *songDetail))
 
 	song, err := s.repo.GetSong(ctx, group, title)
 	if err != nil {
@@ -46,8 +50,8 @@ func (s *musicService) AddSong(ctx context.Context, group string, title string) 
 
 	if song.Title != "" {
 		// Песня найдена
-		log.Printf("[INFO] Песня уже cуществует: %s - %s", song.Group, song.Title)
-		return nil
+		s.logger.Info("Song found in library: ", song.Title)
+		return catalog_errors.ErrSongExists
 	}
 
 	// Parse release date
@@ -78,13 +82,11 @@ func (s *musicService) AddSong(ctx context.Context, group string, title string) 
 
 // GetSongs retrieves songs with optional filtering and pagination
 func (s *musicService) GetSongs(ctx context.Context, filters models.SongFilters, pagination models.Pagination) ([]models.Song, error) {
-	log.Println("[INFO] Fetching songs from library")
 	return s.repo.GetSongs(ctx, filters, pagination)
 }
 
 // GetSongText retrieves song text with pagination (verse by verse)
 func (s *musicService) GetSongText(ctx context.Context, songID int, page int) (string, error) {
-	log.Printf("[INFO] Fetching song text for song ID: %d, page: %d", songID, page)
 	return s.repo.GetSongText(ctx, songID, page)
 }
 

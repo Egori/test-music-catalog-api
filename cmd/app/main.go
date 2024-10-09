@@ -43,7 +43,7 @@ func main() {
 
 	// Подключаем репозиторий и хендлеры
 	repository := pg_repo.NewPostgresSongRepository(dbConnection)
-	musicService := service.NewMusicService(repository, external_api.NewExternalAPIClient(config))
+	musicService := service.NewMusicService(repository, external_api.NewExternalAPIClient(config), logger)
 
 	// Инициализация хендлеров
 	songHandler := api.NewSongHandler(musicService, logger)

@@ -69,6 +69,11 @@ func (h *SongHandler) AddSong(w http.ResponseWriter, r *http.Request) {
 
 	err = h.musicService.AddSong(r.Context(), requestBody.Group, requestBody.Title)
 	if err != nil {
+		if err == catalog_errors.ErrSongExists {
+			h.logger.Info("Song already exists: ", requestBody.Group, requestBody.Title)
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
 		h.logger.Error("Error adding song:", err)
 		http.Error(w, "Error adding the song", http.StatusInternalServerError)
 		return
