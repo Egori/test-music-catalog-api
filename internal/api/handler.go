@@ -122,6 +122,13 @@ func (h *SongHandler) GetSongs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Проверка на наличие найденных песен
+	if len(songs) == 0 {
+		h.logger.Debug("No songs found")
+		http.Error(w, "No songs found", http.StatusNotFound)
+		return
+	}
+
 	// Формируем JSON ответ
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(songs)
