@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"net/http"
 	"strconv"
@@ -97,34 +99,19 @@ func (h *SongHandler) AddSong(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {string} string "Error retrieving the data"
 // @Router /songs [get]
 func (h *SongHandler) GetSongs(w http.ResponseWriter, r *http.Request) {
-	// Получаем параметры фильтров из запроса
-	group := r.URL.Query().Get("group")
-	title := r.URL.Query().Get("title")
-	releaseDate := r.URL.Query().Get("release_date")
 
-	// Создаем структуру фильтров
-	filters := models.SongFilters{
-		Group:       group,
-		Title:       title,
-		ReleaseDate: releaseDate,
-	}
-
-	h.logger.Debug("Request to get songs: ", filters.Group, filters.Title, filters.ReleaseDate)
-
-	// Получаем параметры пагинации
-	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	// Получаем параметры фильтров и пагинации
+	filters, pagination, err := parseRequestParams(r)
 	if err != nil {
-		limit = 10 // значение по умолчанию
+		h.logger.Error("Error parsing request parameters:", err)
+		http.Error(w, "Invalid request parameters: "+err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
-	if err != nil {
-		offset = 0 // значение по умолчанию
-	}
+	h.logger.Debug("Request to get songs:", filters.Group, filters.Title, filters.ReleaseDate)
 
-	pagination := models.Pagination{
-		Limit:  limit,
-		Offset: offset,
+	if pagination.Limit == 0 {
+		pagination.Limit = 10
 	}
 
 	// Вызов сервиса для получения песен
@@ -299,4 +286,77 @@ type UpdateSongRequest struct {
 	Text        string `json:"text" example:"Ooh baby, don't you know I suffer..."`
 	Link        string `json:"link" example:"https://www.youtube.com/watch?v=Xsp3_a-PMTw"`
 	ReleaseDate string `json:"release_date" example:"16.07.2006"`
+}
+
+// parseRequestParams извлекает параметры из запроса и возвращает их в виде структур.
+func parseRequestParams(r *http.Request) (models.SongFilters, models.Pagination, error) {
+	filters := models.SongFilters{}
+	pagination := models.Pagination{}
+
+	// Извлечение фильтров
+	group := r.URL.Query().Get("group")
+	if group != "" {
+		filters.Group = group
+	}
+
+	title := r.URL.Query().Get("title")
+	if title != "" {
+		filters.Title = title
+	}
+
+	releaseDate := r.URL.Query().Get("release_date")
+	if releaseDate != "" {
+		parseDate, err := ParseDate(releaseDate)
+		if err != nil {
+			return filters, pagination, err
+		}
+		filters.ReleaseDate = parseDate
+	}
+
+	// Извлечение пагинации
+	limitStr := r.URL.Query().Get("limit")
+	if limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit < 1 {
+			return filters, pagination, errors.New("invalid limit parameter")
+		}
+		pagination.Limit = limit
+	}
+
+	offsetStr := r.URL.Query().Get("offset")
+	if offsetStr != "" {
+		offset, err := strconv.Atoi(offsetStr)
+		if err != nil || offset < 0 {
+			return filters, pagination, errors.New("invalid offset parameter")
+		}
+		pagination.Offset = offset
+	}
+
+	return filters, pagination, nil
+}
+
+// ParseDate пытается разобрать дату в одном из поддерживаемых форматов
+func ParseDate(dateStr string) (string, error) {
+	var parsedDate time.Time
+	var err error
+
+	// Перебор всех возможных форматов
+	for _, layout := range dateFormats {
+		parsedDate, err = time.Parse(layout, dateStr)
+		if err == nil {
+			// Если дата успешно разобрана в одном из форматов — возвращаем её
+			return parsedDate.Format("2006-01-02"), nil
+		}
+	}
+
+	// Если ни один формат не подошел, возвращаем ошибку
+	return "", fmt.Errorf("не удалось распознать формат даты: %s", dateStr)
+}
+
+// Список возможных форматов дат
+var dateFormats = []string{
+	"02.01.2006",      // Формат "DD.MM.YYYY"
+	"2006-01-02",      // Формат "YYYY-MM-DD"
+	"January 2, 2006", // Формат "January 2, 2006"
+	time.RFC3339,      // ISO 8601 формат (например, "2006-01-02T15:04:05Z07:00")
 }
