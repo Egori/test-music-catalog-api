@@ -44,7 +44,7 @@ func (s *musicService) AddSong(ctx context.Context, group string, title string) 
 
 	song, err := s.repo.GetSong(ctx, group, title)
 	if err != nil {
-		log.Printf("[ERROR] Ошибка при получении песни: %v", err)
+		s.logger.Error("Error getting song from repository: ", err)
 		return err
 	}
 
@@ -57,7 +57,7 @@ func (s *musicService) AddSong(ctx context.Context, group string, title string) 
 	// Parse release date
 	releaseDate, err := ParseDate(songDetail.ReleaseDate)
 	if err != nil {
-		log.Printf("[ERROR] Error parsing release date: %v", err)
+		s.logger.Error("Error parsing release date: ", err)
 		return fmt.Errorf("error parsing release date: %w", err)
 	}
 	songDetail.ReleaseDate = releaseDate.Format("2006-01-02")
@@ -73,7 +73,7 @@ func (s *musicService) AddSong(ctx context.Context, group string, title string) 
 
 	// Save to repository
 	if _, err := s.repo.AddSong(ctx, newSong); err != nil {
-		log.Printf("[ERROR] Error saving song: %v", err)
+		s.logger.Error("Error saving song: ", err)
 		return fmt.Errorf("error saving song: %w", err)
 	}
 
@@ -86,7 +86,7 @@ func (s *musicService) GetSongs(ctx context.Context, filters models.SongFilters,
 	if filters.ReleaseDate != "" {
 		releaseDate, err := ParseDate(filters.ReleaseDate)
 		if err != nil {
-			log.Printf("[ERROR] Error parsing release date: %v", err)
+			s.logger.Error("Error parsing release date: ", err)
 			return []models.Song{}, fmt.Errorf("error parsing release date: %w", err)
 		}
 		filters.ReleaseDate = releaseDate.Format("2006-01-02")
@@ -103,7 +103,7 @@ func (s *musicService) GetSongText(ctx context.Context, songID int, page int) (s
 func (s *musicService) UpdateSong(ctx context.Context, song models.Song) error {
 	releaseDate, err := ParseDate(song.ReleaseDate)
 	if err != nil {
-		log.Printf("[ERROR] Error parsing release date: %v", err)
+		s.logger.Error("Error parsing release date: ", err)
 		return fmt.Errorf("error parsing release date: %w", err)
 	}
 	song.ReleaseDate = releaseDate.Format("2006-01-02")
