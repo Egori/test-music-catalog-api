@@ -82,6 +82,15 @@ func (s *musicService) AddSong(ctx context.Context, group string, title string) 
 
 // GetSongs retrieves songs with optional filtering and pagination
 func (s *musicService) GetSongs(ctx context.Context, filters models.SongFilters, pagination models.Pagination) ([]models.Song, error) {
+
+	if filters.ReleaseDate != "" {
+		releaseDate, err := ParseDate(filters.ReleaseDate)
+		if err != nil {
+			log.Printf("[ERROR] Error parsing release date: %v", err)
+			return []models.Song{}, fmt.Errorf("error parsing release date: %w", err)
+		}
+		filters.ReleaseDate = releaseDate.Format("2006-01-02")
+	}
 	return s.repo.GetSongs(ctx, filters, pagination)
 }
 
